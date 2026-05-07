@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ElectionBarChart } from '@/components/charts/bar-chart';
 import { ElectionPieChart } from '@/components/charts/pie-chart';
+import { ChatPanel } from '@/components/chat-panel';
 import { HighlightCard } from '@/lib/gemini';
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -42,6 +43,7 @@ export default function DetailPage() {
     const [card, setCard] = useState<HighlightCard | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     useEffect(() => {
         async function fetchCard() {
@@ -194,11 +196,22 @@ export default function DetailPage() {
 
             {/* Chat CTA */}
             <div className="pt-4">
-                <Button className="w-full h-12 text-base" size="lg">
+                <Button
+                    onClick={() => setIsChatOpen(true)}
+                    className="w-full h-12 text-base"
+                    size="lg"
+                >
                     <MessageSquare className="mr-2 h-5 w-5" />
                     Chat about this
                 </Button>
             </div>
+
+            {/* Chat Panel */}
+            <ChatPanel
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+                context={card ? `${card.headline}\n\n${card.context}\n\n${card.detail.full_text}` : ''}
+            />
 
             {/* Sources */}
             {card.detail.sources && card.detail.sources.length > 0 && (
