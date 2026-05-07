@@ -3,29 +3,16 @@ import { getBookmarks, addBookmark, removeBookmark, isBookmarked } from '@/lib/i
 
 // Helper to get user ID from request (from auth token or cookie)
 function getUserId(request: NextRequest): string | null {
-    // For now, return null - we'll implement proper auth later
+    // Auth is disabled, use anonymous user for now
     // In production, extract from JWT token or session cookie
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) {
-        // Parse JWT token to get user ID
-        // This is simplified - use proper JWT verification in production
-        return 'anonymous-user';
-    }
-    return null;
+    return 'anonymous-user';
 }
 
 export async function GET(request: NextRequest) {
     try {
         const userId = getUserId(request);
 
-        if (!userId) {
-            return NextResponse.json(
-                { error: 'Authentication required' },
-                { status: 401 }
-            );
-        }
-
-        const result = await getBookmarks(userId);
+        const result = await getBookmarks(userId!);
 
         if (!result.success) {
             return NextResponse.json(
@@ -51,13 +38,6 @@ export async function POST(request: NextRequest) {
     try {
         const userId = getUserId(request);
 
-        if (!userId) {
-            return NextResponse.json(
-                { error: 'Authentication required' },
-                { status: 401 }
-            );
-        }
-
         const body = await request.json();
         const { cardId, cardData } = body;
 
@@ -68,7 +48,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const result = await addBookmark(userId, cardId, cardData);
+        const result = await addBookmark(userId!, cardId, cardData);
 
         if (!result.success) {
             return NextResponse.json(
@@ -94,13 +74,6 @@ export async function DELETE(request: NextRequest) {
     try {
         const userId = getUserId(request);
 
-        if (!userId) {
-            return NextResponse.json(
-                { error: 'Authentication required' },
-                { status: 401 }
-            );
-        }
-
         const body = await request.json();
         const { bookmarkId } = body;
 
@@ -111,7 +84,7 @@ export async function DELETE(request: NextRequest) {
             );
         }
 
-        const result = await removeBookmark(userId, bookmarkId);
+        const result = await removeBookmark(userId!, bookmarkId);
 
         if (!result.success) {
             return NextResponse.json(
