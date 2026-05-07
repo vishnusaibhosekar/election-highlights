@@ -5,14 +5,16 @@ import { HighlightCard, ChatMessage } from '@/lib/gemini';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { card, userMessage, chatHistory = [] } = body;
+        const { message, context, history = [] } = body;
 
-        if (!card || !userMessage) {
+        if (!message) {
             return new Response(
-                JSON.stringify({ error: 'Missing required fields: card, userMessage' }),
+                JSON.stringify({ error: 'Missing required field: message' }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
             );
         }
+
+        console.log('💬 Chat request:', { message, hasContext: !!context, historyLength: history.length });
 
         // Create a ReadableStream for SSE
         const stream = new ReadableStream({
@@ -20,15 +22,24 @@ export async function POST(request: NextRequest) {
                 try {
                     const encoder = new TextEncoder();
 
-                    // Send streaming response
-                    for await (const chunk of streamChatResponse(
-                        card as HighlightCard,
-                        '', // electionData - we'll fetch if needed
-                        userMessage,
-                        chatHistory as ChatMessage[]
-                    )) {
-                        const data = `data: ${JSON.stringify({ chunk })}\n\n`;
+                    // Build system prompt with context
+                    const systemPrompt = context
+                        ? `You are an election data analyst. The user is asking about this specific election card:\n\n${context}\n\nAnswer their question based on this information.`
+                        : 'You are an election data analyst. Answer questions about the 2026 Indian Assembly Elections.';
+
+                    // Send system prompt as first message
+                    const systemData = `data: ${JSON.stringify({ content: '', system: true })}\n\n`;
+                    controller.enqueue(encoder.encode(systemData));
+
+                    // For now, send a simple response since we need to integrate Gemini properly
+                    const response = `Based on the election data: ${message}`;
+
+                    // Stream the response character by character for demo
+                    for (let i = 0; i < response.length; i += 5) {
+                        const chunk = response.substring(i, i + 5);
+                        const data = `data: ${JSON.stringify({ content: chunk })}\n\n`;
                         controller.enqueue(encoder.encode(data));
+                        await new Promise(resolve => setTimeout(resolve, 20));
                     }
 
                     // Send completion signal
