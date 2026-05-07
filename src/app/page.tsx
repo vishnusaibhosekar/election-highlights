@@ -1,13 +1,16 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
-import { TrendingUp, MessageSquare, Bookmark } from 'lucide-react';
+import { TrendingUp, MessageSquare, Bookmark, Loader2 } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleGetStarted = () => {
+    setIsLoading(true);
     router.push('/feed');
   };
 
@@ -31,10 +34,23 @@ export default function Home() {
         <div>
           <button
             onClick={handleGetStarted}
-            className="w-full h-12 px-6 bg-zinc-50 hover:bg-zinc-200 text-zinc-950 rounded-lg text-base font-medium transition-colors"
+            disabled={isLoading}
+            className="w-full h-12 px-6 bg-zinc-50 hover:bg-zinc-200 disabled:bg-zinc-300 disabled:cursor-not-allowed text-zinc-950 rounded-lg text-base font-medium transition-colors flex items-center justify-center gap-2"
           >
-            Explore Election Highlights →
+            {isLoading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Loading highlights...
+              </>
+            ) : (
+              'Explore Election Highlights →'
+            )}
           </button>
+          {isLoading && (
+            <p className="text-sm text-zinc-500 mt-3 text-center">
+              First load takes ~20 seconds (scraping Wikipedia + AI generation)
+            </p>
+          )}
         </div>
 
         {/* Feature Preview */}

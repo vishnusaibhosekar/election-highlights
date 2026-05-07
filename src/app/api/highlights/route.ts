@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCachedHighlights } from '@/lib/insforge';
+import { getCachedHighlights, cacheHighlights } from '@/lib/insforge';
 import { generateCards } from '@/lib/gemini';
 import { fetchElectionData } from '@/lib/tinyfish';
 import { HighlightCard, CardCategory } from '@/lib/gemini';
@@ -32,9 +32,8 @@ export async function GET(request: NextRequest) {
         const allCards: HighlightCard[] = [];
 
         for (const s of statesToFetch) {
-            const cacheKey = category === 'all' ? 'all' : category;
-
-            const cached = await getCachedHighlights(s, cacheKey);
+            // Always check 'all' cache first (since we generate all categories together)
+            const cached = await getCachedHighlights(s, 'all');
 
             if (cached.success && cached.data) {
                 // Check if cache is less than 1 hour old
@@ -43,11 +42,19 @@ export async function GET(request: NextRequest) {
                 const hoursSinceCache = (now.getTime() - cachedAt.getTime()) / (1000 * 60 * 60);
 
                 if (hoursSinceCache < 1) {
-                    // Use cached data
-                    allCards.push(...(cached.data.cards as HighlightCard[]));
-                    console.log(`📦 Using cached highlights for ${s}/${cacheKey}`);
+                    // Use cached data and filter by category
+                    const allCardsFromCache = cached.data.cards as HighlightCard[];
+                    const filtered = category === 'all'
+                        ? allCardsFromCache
+                        : allCardsFromCache.filter(card => card.category === category);
+                    allCards.push(...filtered);
+                    console.log(`📦 Using cached highlights for ${s} (filtered by ${category})`);
                     continue;
+                } else {
+                    console.log(`⏰ Cache expired for ${s} (${hoursSinceCache.toFixed(1)} hours old)`);
                 }
+            } else {
+                console.log(`📭 No cache found for ${s}`);
             }
 
             // Cache miss or expired - generate new cards
@@ -64,8 +71,31 @@ export async function GET(request: NextRequest) {
                 electionResult.data.text
             );
 
+            console.log(`🤖 Gemini response for ${s}:`, {
+                success: cardsResult.success,
+                cardsCount: cardsResult.cards?.length || 0,
+                error: cardsResult.error,
+            });
+
             if (cardsResult.success && cardsResult.cards) {
-                allCards.push(...cardsResult.cards);
+                // Cache the generated cards
+                try {
+                    await cacheHighlights(
+                        s,
+                        'all',
+                        cardsResult.cards as any,
+                        { source: electionResult.data?.url }
+                    );
+                    console.log(`✅ Cards cached for ${s}`);
+                } catch (cacheError) {
+                    console.warn(`⚠️ Failed to cache cards for ${s}:`, cacheError);
+                }
+
+                // Filter by category
+                const filtered = category === 'all'
+                    ? cardsResult.cards
+                    : cardsResult.cards.filter(card => card.category === category);
+                allCards.push(...filtered);
             }
         }
 

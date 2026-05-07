@@ -25,12 +25,11 @@ const CHAT_MODEL = 'gemini-2.5-flash';
 
 const CARD_GENERATION_CONFIG = {
     temperature: 0.3, // Consistent, factual
-    maxOutputTokens: 4000,
+    responseMimeType: 'application/json', // Force JSON response
 };
 
 const CHAT_CONFIG = {
     temperature: 0.5, // Slightly more conversational
-    maxOutputTokens: 500,
 };
 
 /**
@@ -168,6 +167,8 @@ export async function generateCards(
         const prompt = CARD_GENERATION_PROMPT.replace('{state}', state.replace('_', ' '));
         const fullPrompt = `${prompt}\n\nHere is the election data:\n\n${electionData}`;
 
+        console.log(`🤖 Sending prompt to Gemini (${fullPrompt.length} chars)...`);
+
         const response = await ai.models.generateContent({
             model: CARD_GENERATION_MODEL,
             contents: fullPrompt,
@@ -175,14 +176,23 @@ export async function generateCards(
         });
 
         const text = response.text?.trim() || '';
+        console.log(`🤖 Gemini response received (${text.length} chars)`);
 
         // Parse JSON response
         try {
             // Remove markdown code blocks if present
-            const jsonStr = text
+            let jsonStr = text
                 .replace(/```json\n?/g, '')
                 .replace(/```\n?/g, '')
                 .trim();
+
+            // Try to find JSON array in the response
+            const startIndex = jsonStr.indexOf('[');
+            const endIndex = jsonStr.lastIndexOf(']');
+
+            if (startIndex !== -1 && endIndex !== -1) {
+                jsonStr = jsonStr.substring(startIndex, endIndex + 1);
+            }
 
             const cards: HighlightCard[] = JSON.parse(jsonStr);
 
@@ -198,6 +208,10 @@ export async function generateCards(
                 cards: cardsWithTimestamp,
             };
         } catch (parseError) {
+            console.error('JSON Parse Error:', parseError);
+            console.error('Raw Gemini response (first 500 chars):', text.substring(0, 500));
+            console.error('Raw Gemini response (last 500 chars):', text.substring(text.length - 500));
+
             return {
                 success: false,
                 error: `Failed to parse Gemini response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
