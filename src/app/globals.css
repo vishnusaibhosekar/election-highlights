@@ -121,11 +121,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
   html {
     @apply font-sans;
     scroll-behavior: smooth;
@@ -135,11 +137,12 @@
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
+
   /* Prevent horizontal scroll on mobile */
   body {
     overflow-x: hidden;
   }
-  
+
   /* Better touch scrolling */
   * {
     -webkit-overflow-scrolling: touch;
